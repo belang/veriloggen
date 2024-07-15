@@ -1,3 +1,6 @@
 *.pyc
 *.out
 parsetab.py
+*.un~
+*.swp
+*.swo

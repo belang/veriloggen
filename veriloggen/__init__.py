@@ -23,6 +23,9 @@ import os
 import sys
 
 
+# pyverilog: TODO: remove after install
+sys.path.insert(0, '/mnt/eda/hy/source/Pyverilog')
+
 __version__ = open(os.path.join(os.path.dirname(__file__), "VERSION")).read().splitlines()[0]
 
 # expand the recursive call limit for python 3.6 and later

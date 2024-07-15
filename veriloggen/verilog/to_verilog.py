@@ -14,7 +14,10 @@ from pyverilog.ast_code_generator.codegen import ASTCodeGenerator
 
 # -------------------------------------------------------------------------
 def write_verilog(node, filename=None, for_verilator=False):
-    visitor = VerilogModuleVisitor(for_verilator)
+    if isinstance(node, module.Package):
+        visitor = VerilogPackageVisitor(for_verilator)
+    else:
+        visitor = VerilogModuleVisitor(for_verilator)
     modules = tuple(node.get_modules().values())
 
     module_ast_list = [visitor.visit(mod) for mod in modules
@@ -618,6 +621,35 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
         return m
 
     # -------------------------------------------------------------------------
+
+    def visit_ENUMType(self, node):
+        namedecllist = []
+        for one in node.enumnamelist:
+            if '=' in one:
+                one_str = one.split('=')
+                name = one_str[0].strip()
+                value = one_str[1].strip()
+                namedecllist.append(vast.Variable(name, value))
+            else:
+                namedecllist.append(vast.ENUMId(one))
+        subt = ENUMType(node.sigtype, node.width, ENUMNameDecl(p[4], lineno=p.lineno(4)), lineno=p.lineno(1))
+        return vast.Typedef(node.name, subt)
+
+    def visit_StructType(self, node):
+        memberlist = []
+        for one in node.memberlist:
+            if '=' in one:
+                one_str = one.split('=')
+                name = one_str[0].strip()
+                value = one_str[1].strip()
+                namedecllist.append(vast.Variable(name, value))
+            else:
+                namedecllist.append(vast.ENUMId(one))
+        subt = ENUMType(node.sigtype, node.width, ENUMNameDecl(p[4], lineno=p.lineno(4)), lineno=p.lineno(1))
+        return vast.Typedef(node.name, subt)
+        return vast.Typedef(node.name, subt)
+
+    # -------------------------------------------------------------------------
     def visit_Parameter(self, node):
         name = node.name
         value = self.bind_visitor.visit(node.value)
@@ -813,6 +845,28 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
 
     def visit_GenerateIfElse(self, node):
         return None
+
+
+# -------------------------------------------------------------------------
+
+class VerilogPackageVisitor(VerilogModuleVisitor):
+    def __init__(self, for_verilator=False):
+        super(VerilogPackageVisitor, self).__init__(for_verilator=False)
+
+    def visit(self, node):
+        return self.visit_Package(node)
+
+    def visit_Package(self, node):
+        self.module = node
+        name = node.name
+
+        items = [self.visit(i) for i in node.items]
+        items = [i for i in items if i is not None]
+
+        m = vast.PackageDef(name, items)
+
+        self.package = None
+        return m
 
 
 # -------------------------------------------------------------------------

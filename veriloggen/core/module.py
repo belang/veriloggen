@@ -196,6 +196,14 @@ class Module(vtypes.VeriloggenNode):
         name = '_'.join([prefix, str(self.get_tmp())])
         return self.Localparam(name, value, width, signed, dims)
 
+    def Typedef(self, name, value, width=None, signed=False, dims=None):
+        # next: typedef
+        t = vtypes.Typedef(value, width, signed, name=name, module=self)
+        self.check_existing_identifier(name)
+        self.local_constant[name] = t
+        self.items.append(t)
+        return t
+
     # -------------------------------------------------------------------------
     def InputLike(self, src, name=None, width=None, dims=None,
                   signed=None, value=None):
@@ -1500,6 +1508,12 @@ class GenerateIfElse(Generate):
     def __call__(self, false_scope):
         self.false_scope = false_scope
         return self
+
+class Package(Module):
+    """ Verilog Package class """
+
+    def __init__(self, name=None, tmp_prefix='_tmp'):
+        super(Package, self).__init__(name, tmp_prefix)
 
 
 def connect_same_name(*args):

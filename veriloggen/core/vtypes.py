@@ -319,6 +319,28 @@ class VeriloggenNode(object):
         raise TypeError('Not allowed operation.')
 
 
+class Typedef(VeriloggenNode):
+    """Typedef"""
+    def __init__(self, name):
+        super(Typedef, self).__init__()
+        self.name = name
+
+class ENUMType(Typedef):
+    """typdef enum"""
+    def __init__(self, name, sigtype, width=None, enumnamelist=[]):
+        super(ENUMType, self).__init__(name)
+        self.sigtype = sigtype
+        self.width = width
+        self.enumnamelist = enumnamelist
+
+class StructType(Typedef):
+    """typdef struct packed"""
+    def __init__(self, name, memberlist=[]):
+        super(StructType, self).__init__(name)
+        self.sigtype = sigtype
+        self.width = width
+        self.memberlist = memberlist
+
 class _Numeric(VeriloggenNode):
 
     def __init__(self):
