@@ -319,27 +319,13 @@ class VeriloggenNode(object):
         raise TypeError('Not allowed operation.')
 
 
-class Typedef(VeriloggenNode):
-    """Typedef"""
-    def __init__(self, name):
-        super(Typedef, self).__init__()
+class Import(VeriloggenNode):
+    """Import package"""
+    def __init__(self, name, item, module):
+        super(Import, self).__init__()
         self.name = name
-
-class ENUMType(Typedef):
-    """typdef enum"""
-    def __init__(self, name, sigtype, width=None, enumnamelist=[]):
-        super(ENUMType, self).__init__(name)
-        self.sigtype = sigtype
-        self.width = width
-        self.enumnamelist = enumnamelist
-
-class StructType(Typedef):
-    """typdef struct packed"""
-    def __init__(self, name, memberlist=[]):
-        super(StructType, self).__init__(name)
-        self.sigtype = sigtype
-        self.width = width
-        self.memberlist = memberlist
+        self.item = item
+        self.module = module
 
 class _Numeric(VeriloggenNode):
 
@@ -730,6 +716,52 @@ class Integer(_Variable):
 
 
 class Real(_Variable):
+
+    def reset(self):
+        if self.initval is None:
+            return None
+        return self.write(self.initval)
+
+    def add(self, r):
+        return self.write(self + r)
+
+    def sub(self, r):
+        return self.write(self - r)
+
+    def inc(self):
+        return self.add(1)
+
+    def dec(self):
+        return self.sub(1)
+
+
+class Logic(_Variable):
+
+    def reset(self):
+        if self.initval is None:
+            return None
+        return self.write(self.initval)
+
+    def add(self, r):
+        return self.write(self + r)
+
+    def sub(self, r):
+        return self.write(self - r)
+
+    def inc(self):
+        return self.add(1)
+
+    def dec(self):
+        return self.sub(1)
+
+
+class Usertype(_Variable):
+
+    def __init__(self, datatype, width=1, dims=None, signed=False, value=None, initval=None, name=None,
+                 raw_width=None, raw_dims=None, module=None):
+        super(Usertype, self).__init__(width=width, dims=dims, signed=signed, value=value, initval=initval, name=name,
+                 raw_width=raw_width, raw_dims=raw_dims, module=module)
+        self.datatype = datatype
 
     def reset(self):
         if self.initval is None:
@@ -1969,6 +2001,42 @@ class Always(VeriloggenNode):
         return self.set_statement(*statement)
 
 
+class AlwaysFF(VeriloggenNode):
+
+    def __init__(self, *sensitivity, scope=None):
+        VeriloggenNode.__init__(self)
+        self.sensitivity = tuple(sensitivity)
+        self.statement = None
+        self.scope = scope
+
+    def set_statement(self, *statement):
+        if self.statement is not None:
+            raise ValueError("Statement is already assigned.")
+        self.statement = tuple(statement)
+        return self
+
+    def __call__(self, *statement):
+        return self.set_statement(*statement)
+
+
+class AlwaysComb(VeriloggenNode):
+
+    def __init__(self, *sensitivity, scope=None):
+        VeriloggenNode.__init__(self)
+        self.sensitivity = tuple(sensitivity)
+        self.statement = None
+        self.scope = scope
+
+    def set_statement(self, *statement):
+        if self.statement is not None:
+            raise ValueError("Statement is already assigned.")
+        self.statement = tuple(statement)
+        return self
+
+    def __call__(self, *statement):
+        return self.set_statement(*statement)
+
+
 class Assign(VeriloggenNode):
 
     def __init__(self, statement):
@@ -2331,5 +2399,12 @@ class EmbeddedNumeric(EmbeddedCode, _Numeric):
     def __init__(self, code):
         EmbeddedCode.__init__(self, code)
 
+class ENUMNamedecl(VeriloggenNode):
+    """enumnamedecl"""
+    def __init__(self, name, value, module):
+        super(ENUMNamedecl, self).__init__()
+        self.name = name
+        self.value = value
+        self.module = module
 
 numerical_types = (_Numeric, int, bool, float, str)

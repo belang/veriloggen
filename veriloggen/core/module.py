@@ -156,6 +156,26 @@ class Module(vtypes.VeriloggenNode):
         name = '_'.join([prefix, str(self.get_tmp())])
         return self.Real(name, width, dims, signed, value, initval)
 
+    def Logic(self, name, width=None, dims=None, signed=False, value=None,
+                initval=None):
+
+        t = vtypes.Logic(width, dims, signed, value,
+                           initval, name=name, module=self)
+        self.check_existing_identifier(name)
+        self.variable[name] = t
+        self.items.append(t)
+        return t
+
+    def Usertype(self, datatype, name, width=None, dims=None, signed=False, value=None,
+                initval=None):
+
+        t = vtypes.Usertype(datatype, width, dims, signed, value,
+                           initval, name=name, module=self)
+        self.check_existing_identifier(name)
+        self.variable[name] = t
+        self.items.append(t)
+        return t
+
     def Genvar(self, name, width=None, dims=None, signed=False, value=None):
 
         t = vtypes.Genvar(width, dims, signed, value, name=name, module=self)
@@ -171,6 +191,14 @@ class Module(vtypes.VeriloggenNode):
             prefix = self.tmp_prefix
         name = '_'.join([prefix, str(self.get_tmp())])
         return self.Genvar(name, width, dims, signed, value)
+
+    def Import(self, name, item, width=None, signed=False, dims=None):
+
+        t = vtypes.Import(name, item, module=self)
+        self.check_existing_identifier(name)
+        self.global_constant[name] = t
+        self.items.append(t)
+        return t
 
     def Parameter(self, name, value, width=None, signed=False, dims=None):
 
@@ -196,13 +224,29 @@ class Module(vtypes.VeriloggenNode):
         name = '_'.join([prefix, str(self.get_tmp())])
         return self.Localparam(name, value, width, signed, dims)
 
-    def Typedef(self, name, value, width=None, signed=False, dims=None):
-        # next: typedef
-        t = vtypes.Typedef(value, width, signed, name=name, module=self)
-        self.check_existing_identifier(name)
-        self.local_constant[name] = t
-        self.items.append(t)
-        return t
+    def Typedef(self, datatype):
+        #if isinstance(datatype, StructType):
+            #t = vtypes.Typedef(name, vtypes.StructType(datatype), module=self)
+        #else:
+            #raise TypeError(f"unknow data type: {datatype.__class__.__name__}")
+        self.check_existing_identifier(datatype.name)
+        self.local_constant[datatype.name] = datatype
+        self.items.append(datatype)
+        return datatype
+
+    def StructType(self, name):
+        datatype = StructType(name, module)
+        self.check_existing_identifier(datatype.name)
+        self.local_constant[datatype.name] = datatype
+        self.items.append(datatype)
+        return datatype
+
+    def ENUMType(self, name):
+        datatype = ENUMType(name, self)
+        self.check_existing_identifier(datatype.name)
+        self.local_constant[datatype.name] = datatype
+        self.items.append(datatype)
+        return datatype
 
     # -------------------------------------------------------------------------
     def InputLike(self, src, name=None, width=None, dims=None,
@@ -495,6 +539,20 @@ class Module(vtypes.VeriloggenNode):
     def Always(self, *sensitivity):
 
         t = vtypes.Always(*sensitivity)
+        self.always.append(t)
+        self.items.append(t)
+        return t
+
+    def AlwaysFF(self, *sensitivity, scope=None):
+
+        t = vtypes.AlwaysFF(*sensitivity, scope=None)
+        self.always.append(t)
+        self.items.append(t)
+        return t
+
+    def AlwaysComb(self, *sensitivity, scope=None):
+
+        t = vtypes.AlwaysComb(*sensitivity, scope=None)
         self.always.append(t)
         self.items.append(t)
         return t
@@ -1515,6 +1573,30 @@ class Package(Module):
     def __init__(self, name=None, tmp_prefix='_tmp'):
         super(Package, self).__init__(name, tmp_prefix)
 
+
+class StructType(Module):
+    """Struct packed type"""
+    def __init__(self, name=None, module=None):
+        super(StructType, self).__init__(name, '_tmp')
+        self.module = module
+
+class ENUMType(Module):
+    """enum type"""
+    def __init__(self, name=None, module=None):
+        super(ENUMType, self).__init__(name, '_tmp')
+        self.module = module
+        self.namedecllist = []
+        self.raw_width = None
+    def sigtype(self, name, width=None):
+        self.sigtype_name = name
+        self.width = width
+    def namedecl(self, name, value=None):
+        datatype = vtypes.ENUMNamedecl(name, value, self.module)
+        self.check_existing_identifier(datatype.name)
+        self.local_constant[datatype.name] = datatype
+        self.namedecllist.append(datatype)
+        self.items.append(datatype)
+        return datatype
 
 def connect_same_name(*args):
     ret = []

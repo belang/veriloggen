@@ -33,7 +33,7 @@ sys.setrecursionlimit(1000 * 10)
 
 # Verilog HDL Core
 from .core.vtypes import *
-from .core.module import Module, StubModule, Instance, GenerateFor, GenerateIf, connect_same_name
+from .core.module import StructType, Package, Module, StubModule, Instance, GenerateFor, GenerateIf, connect_same_name
 from .core.function import Function, FunctionCall
 from .core.task import Task, TaskCall
 from .core.submodule import Submodule

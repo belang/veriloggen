@@ -200,6 +200,14 @@ class VerilogCommonVisitor(object):
         name = node.name
         return vast.Identifier(name)
 
+    def visit_Logic(self, node):
+        name = node.name
+        return vast.Identifier(name)
+
+    def visit_Usertype(self, node):
+        name = node.name
+        return vast.Identifier(name)
+
     def visit_Genvar(self, node):
         name = node.name
         return vast.Identifier(name)
@@ -587,7 +595,7 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
 
     # -------------------------------------------------------------------------
     def visit(self, node):
-        if isinstance(node, module.Module) and not isinstance(node, module.Generate):
+        if isinstance(node, module.Module) and not isinstance(node, module.Generate) and not isinstance(node, module.ENUMType) and not isinstance(node, module.StructType):
             return self.visit_Module(node)
         name = node.__class__.__name__
         if hasattr(node, 'ast_name') and node.ast_name is not None:
@@ -600,7 +608,9 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
         self.module = node
         name = node.name
 
-        params = ([self.visit(v) for v in node.global_constant.values()])
+        imports = ([self.visit(v) for v in node.global_constant.values() if isinstance(v, vtypes.Import)])
+        importlist = [i for i in imports if i is not None]
+        params = ([self.visit(v) for v in node.global_constant.values() if isinstance(v, vtypes.Parameter)])
         params = [i for i in params if i is not None]
         paramlist = vast.Paramlist(tuple(params))
 
@@ -609,45 +619,24 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
         portlist = vast.Portlist(tuple(ports))
 
         excludes = [vtypes.Input, vtypes.Output,
-                    vtypes.Inout, vtypes.Parameter]
+                    vtypes.Inout, vtypes.Parameter,
+                    vtypes.Import]
 
+        # improvement: add Decl level, which helps to format lines.
         items = [self.visit(i) for i in node.items
                  if not isinstance(i, tuple(excludes))]
         items = [i for i in items if i is not None]
 
-        m = vast.ModuleDef(name, paramlist, portlist, items)
+        m = vast.ModuleDef(name, importlist, paramlist, portlist, items)
 
         self.module = None
         return m
 
     # -------------------------------------------------------------------------
-
-    def visit_ENUMType(self, node):
-        namedecllist = []
-        for one in node.enumnamelist:
-            if '=' in one:
-                one_str = one.split('=')
-                name = one_str[0].strip()
-                value = one_str[1].strip()
-                namedecllist.append(vast.Variable(name, value))
-            else:
-                namedecllist.append(vast.ENUMId(one))
-        subt = ENUMType(node.sigtype, node.width, ENUMNameDecl(p[4], lineno=p.lineno(4)), lineno=p.lineno(1))
-        return vast.Typedef(node.name, subt)
-
-    def visit_StructType(self, node):
-        memberlist = []
-        for one in node.memberlist:
-            if '=' in one:
-                one_str = one.split('=')
-                name = one_str[0].strip()
-                value = one_str[1].strip()
-                namedecllist.append(vast.Variable(name, value))
-            else:
-                namedecllist.append(vast.ENUMId(one))
-        subt = ENUMType(node.sigtype, node.width, ENUMNameDecl(p[4], lineno=p.lineno(4)), lineno=p.lineno(1))
-        return vast.Typedef(node.name, subt)
-        return vast.Typedef(node.name, subt)
+    def visit_Import(self, node):
+        name = node.name
+        item = vast.Identifier(node.item)
+        return vast.Import(name, item)
 
     # -------------------------------------------------------------------------
     def visit_Parameter(self, node):
@@ -665,6 +654,24 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
         width = self.make_width(node)
         signed = node.signed
         return vast.Localparam(name, value, width, signed)
+
+    # -------------------------------------------------------------------------
+    def visit_ENUMType(self, node):
+        namedecllist = []
+        for one in node.namedecllist:
+            if one.value is None:
+                namedecllist.append(vast.ENUMId(one.name))
+            else:
+                namedecllist.append(vast.Variable(one.name, one.value))
+        namedecl = vast.ENUMNameDecl(namedecllist)
+        width = self.make_width(node)
+        print("debug: enum type sigtype width - ", type(width))
+        subt = vast.ENUMType(vast.Identifier(node.sigtype_name), namedecl, width=width)
+        return vast.Typedef(node.name, subt)
+
+    def visit_StructType(self, node):
+        items = [self.visit(i) for i in node.items]
+        return vast.Typedef(node.name, vast.StructType(vast.Decl(items)))
 
     # -------------------------------------------------------------------------
     def visit_Input(self, node):
@@ -720,6 +727,20 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
         signed = node.signed
         return vast.Real(name, width, signed, dims)
 
+    def visit_Logic(self, node):
+        name = node.name
+        width = self.make_width(node)
+        dims = self.make_dims(node)
+        signed = node.signed
+        return vast.Logic(name, width, signed, dims)
+
+    def visit_Usertype(self, node):
+        name = node.name
+        width = self.make_width(node)
+        dims = self.make_dims(node)
+        signed = node.signed
+        return vast.Usertype(name, vast.Identifier(node.datatype), width, signed, dims)
+
     def visit_Genvar(self, node):
         name = node.name
         width = self.make_width(node)
@@ -756,6 +777,26 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
         statement = self._optimize_block(
             vast.Block(tuple([self.always_visitor.visit(n) for n in node.statement])))
         return vast.Always(sensitivity, statement)
+
+    def visit_AlwaysFF(self, node):
+        sens = (tuple([self.visit(n) if isinstance(n, vtypes.Sensitive) else
+                       vast.Sens(self.always_visitor.visit(n), 'level')
+                       for n in node.sensitivity]) if node.sensitivity else
+                tuple([vast.Sens(None, 'all')]))
+        sensitivity = vast.SensList(sens)
+        statement = self._optimize_block(
+            vast.Block(tuple([self.always_visitor.visit(n) for n in node.statement]), scope=node.scope))
+        return vast.AlwaysFF(sensitivity, statement)
+
+    def visit_AlwaysComb(self, node):
+        sens = (tuple([self.visit(n) if isinstance(n, vtypes.Sensitive) else
+                       vast.Sens(self.always_visitor.visit(n), 'level')
+                       for n in node.sensitivity]) if node.sensitivity else
+                tuple([vast.Sens(None, 'all')]))
+        sensitivity = vast.SensList(sens)
+        statement = self._optimize_block(
+            vast.Block(tuple([self.always_visitor.visit(n) for n in node.statement]), scope=node.scope))
+        return vast.AlwaysComb(sensitivity, statement)
 
     # -------------------------------------------------------------------------
     def visit_Assign(self, node):
@@ -854,7 +895,13 @@ class VerilogPackageVisitor(VerilogModuleVisitor):
         super(VerilogPackageVisitor, self).__init__(for_verilator=False)
 
     def visit(self, node):
-        return self.visit_Package(node)
+        if isinstance(node, module.Package):
+            return self.visit_Package(node)
+        name = node.__class__.__name__
+        if hasattr(node, 'ast_name') and node.ast_name is not None:
+            name = node.ast_name
+        visitor = getattr(self, 'visit_' + name, self.generic_visit)
+        return visitor(node)
 
     def visit_Package(self, node):
         self.module = node
@@ -865,7 +912,7 @@ class VerilogPackageVisitor(VerilogModuleVisitor):
 
         m = vast.PackageDef(name, items)
 
-        self.package = None
+        self.module = None
         return m
 
 
