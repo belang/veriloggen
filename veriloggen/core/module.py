@@ -47,17 +47,17 @@ class Module(vtypes.VeriloggenNode):
     # -------------------------------------------------------------------------
     # User interface for variables
     # -------------------------------------------------------------------------
-    def Input(self, name, width=None, dims=None, signed=False, value=None):
+    def Input(self, name, width=None, datatype=None, dims=None, signed=False, value=None):
 
-        t = vtypes.Input(width, dims, signed, value, name=name, module=self)
+        t = vtypes.Input(width, dims, signed, value, datatype=datatype, name=name, module=self)
         self.check_existing_identifier(name, vtypes.Wire)
         self.io_variable[name] = t
         self.items.append(t)
         return t
 
-    def Output(self, name, width=None, dims=None, signed=False, value=None):
+    def Output(self, name, width=None, datatype=None, dims=None, signed=False, value=None):
 
-        t = vtypes.Output(width, dims, signed, value, name=name, module=self)
+        t = vtypes.Output(width, dims, signed, value, datatype=datatype, name=name, module=self)
         self.check_existing_identifier(name, vtypes.Wire, vtypes.Reg)
         self.io_variable[name] = t
         self.items.append(t)
@@ -156,7 +156,7 @@ class Module(vtypes.VeriloggenNode):
         name = '_'.join([prefix, str(self.get_tmp())])
         return self.Real(name, width, dims, signed, value, initval)
 
-    def Logic(self, name, width=None, dims=None, signed=False, value=None,
+    def Logic(self, name, width=None, value=None, dims=None, signed=False, 
                 initval=None):
 
         t = vtypes.Logic(width, dims, signed, value,
@@ -235,7 +235,7 @@ class Module(vtypes.VeriloggenNode):
         return datatype
 
     def StructType(self, name):
-        datatype = StructType(name, module)
+        datatype = StructType(name, self)
         self.check_existing_identifier(datatype.name)
         self.local_constant[datatype.name] = datatype
         self.items.append(datatype)

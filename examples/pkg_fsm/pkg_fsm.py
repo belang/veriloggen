@@ -8,11 +8,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from veriloggen import *
 
-# next: generate fsm verilog
 def pkgFSM():
     pkg = Package('fsm_pkg')
     st = pkg.StructType('counter_t')
-    st.Logic('counter1', 12)
+    st.Logic('counter1', 12, value=5)
     return pkg
 
 def fsm():
@@ -48,7 +47,7 @@ def fsm():
     fsm.AlwaysFF(scope='update_counter')(
         If(Not(rst_n))(
             counter1(0),
-            counter2(0),
+            counter2('10'),
             counter3(0)
         ).Else(
             If(fsm_cs == 'ST1')(counter1(counter1+1)),
@@ -73,7 +72,9 @@ def fsm():
 
 if __name__ == '__main__':
     #test = mkTest()
-    #test = pkgFSM()
+    test = pkgFSM()
+    verilog = test.to_verilog('tmp.v')
+    print(verilog)
     test = fsm()
     verilog = test.to_verilog('tmp.v')
     print(verilog)

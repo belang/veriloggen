@@ -24,6 +24,7 @@ def write_verilog(node, filename=None, for_verilator=False):
                        if not isinstance(mod, module.StubModule)]
     description = vast.Description(module_ast_list)
     source = vast.Source(filename, description)
+    #print(source.show())
 
     codegen = ASTCodeGenerator()
     main = codegen.visit(source)
@@ -665,13 +666,15 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
                 namedecllist.append(vast.Variable(one.name, one.value))
         namedecl = vast.ENUMNameDecl(namedecllist)
         width = self.make_width(node)
-        print("debug: enum type sigtype width - ", type(width))
         subt = vast.ENUMType(vast.Identifier(node.sigtype_name), namedecl, width=width)
         return vast.Typedef(node.name, subt)
 
     def visit_StructType(self, node):
-        items = [self.visit(i) for i in node.items]
-        return vast.Typedef(node.name, vast.StructType(vast.Decl(items)))
+        items = []
+        for item in node.items:
+            ast_item = self.visit(item)
+            items.append(vast.Decl([ast_item, ]))
+        return vast.Typedef(node.name, vast.StructType(items))
 
     # -------------------------------------------------------------------------
     def visit_Input(self, node):
@@ -679,7 +682,9 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
         width = self.make_width(node)
         dims = self.make_dims(node)
         signed = node.signed
-        return vast.Ioport(vast.Input(name, width, signed, dims))
+        if node.datatype is None:
+            return vast.Ioport(vast.Input(name=name, width=width, signed=signed, dimensions=dims))
+        return vast.Ioport(vast.Input(name=name, width=width, signed=signed, dimensions=dims), vast.Usertype(name=name, datatype=node.datatype))
 
     def visit_Output(self, node):
         name = node.name
@@ -687,7 +692,8 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
         dims = self.make_dims(node)
         signed = node.signed
         first = vast.Output(name, width, signed, dims)
-        second = vast.Reg(name, width, signed, dims) if self.module.is_reg(name) else None
+        #second = vast.Reg(name, width, signed, dims) if self.module.is_reg(name) else None
+        second = vast.Usertype(name, datatype=node.datatype) if node.datatype is not None else None
         return vast.Ioport(first, second)
 
     def visit_Inout(self, node):
@@ -732,14 +738,22 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
         width = self.make_width(node)
         dims = self.make_dims(node)
         signed = node.signed
-        return vast.Logic(name, width, signed, dims)
+        if node.value is not None:
+            value = vast.Rvalue(self.bind_visitor.visit(node.value))
+        else:
+            value = None
+        return vast.Logic(name, width, signed, dims, value=value)
 
     def visit_Usertype(self, node):
         name = node.name
         width = self.make_width(node)
         dims = self.make_dims(node)
         signed = node.signed
-        return vast.Usertype(name, vast.Identifier(node.datatype), width, signed, dims)
+        if node.value is not None:
+            value = vast.Rvalue(self.bind_visitor.visit(node.value))
+        else:
+            value = None
+        return vast.Usertype(name, vast.Identifier(node.datatype), width, signed, dims, value=value)
 
     def visit_Genvar(self, node):
         name = node.name

@@ -543,7 +543,7 @@ class _Numeric(VeriloggenNode):
 
 class _Variable(_Numeric):
 
-    def __init__(self, width=1, dims=None, signed=False, value=None, initval=None, name=None,
+    def __init__(self, width=1, dims=None, signed=False, value=None, initval=None, name=None, datatype=None, 
                  raw_width=None, raw_dims=None, module=None):
         _Numeric.__init__(self)
         self.name = name
@@ -554,6 +554,7 @@ class _Variable(_Numeric):
         self.signed = signed
         self.value = value
         self.initval = initval
+        self.datatype = datatype
 
         self.raw_width = raw_width  # (MSB, LSB)
         if raw_dims is not None:

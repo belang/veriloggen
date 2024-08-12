@@ -1,0 +1,4 @@
+* 2024-07-20
+
+  - new SV keywords: package, typedef, import, struct packed, enum, logic
+  - features: add vast.Decl to suuport declearassign in module
