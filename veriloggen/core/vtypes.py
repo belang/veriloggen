@@ -219,6 +219,20 @@ def _write_subst(obj, value, blk=False, ldelay=None, rdelay=None):
         value = value.to_int()
     return Subst(obj, value, blk=blk, ldelay=ldelay, rdelay=rdelay)
 
+class SvSlice(object):
+    """For SV type slice used in python: bit[6:0]
+    """
+    def __init__(self, v):
+        if isinstance(v, list):
+            self.start = v[0]
+            self.stop = v[1]
+            self.step = 1
+        elif isinstance(v, slice):
+            self.start = v.start
+            self.stop = v.stop
+            self.step = v.step
+        else:
+            raise NotImplementedError()
 
 class VeriloggenNode(object):
     """ Base class of Veriloggen AST object """
@@ -444,7 +458,10 @@ class _Numeric(VeriloggenNode):
         return Abs(self)
 
     def __getitem__(self, r):
-        if isinstance(r, slice):
+        if isinstance(r, SvSlice):
+            # not support step
+            return Slice(self, r.start, r.stop)
+        elif isinstance(r, slice):
             size = self._len()
 
             right = r.start
