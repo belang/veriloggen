@@ -2359,6 +2359,10 @@ def Signed(value):
     return SystemTask('signed', value)
 
 
+def Unsigned(value):
+    return SystemTask('unsigned', value)
+
+
 class Event(VeriloggenNode):
 
     def __init__(self, *sensitivity):
