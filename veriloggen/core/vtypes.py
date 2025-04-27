@@ -231,8 +231,12 @@ class SvSlice(object):
             self.start = v.start
             self.stop = v.stop
             self.step = v.step
+        elif isinstance(v, int):
+            self.start = v
+            self.stop = v
+            self.step = 1
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(f"{v=}, {type(v)=}")
 
 class VeriloggenNode(object):
     """ Base class of Veriloggen AST object """
