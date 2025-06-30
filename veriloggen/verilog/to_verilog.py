@@ -693,7 +693,7 @@ class VerilogModuleVisitor(VerilogCommonVisitor):
         signed = node.signed
         first = vast.Output(name, width, signed, dims)
         #second = vast.Reg(name, width, signed, dims) if self.module.is_reg(name) else None
-        second = vast.Usertype(name, datatype=node.datatype) if node.datatype is not None else None
+        second = vast.Logic(name) if node.datatype.__name__ == vast.Logic.__name__ else vast.Usertype(name, datatype=node.datatype) if node.datatype is not None else None
         return vast.Ioport(first, second)
 
     def visit_Inout(self, node):
